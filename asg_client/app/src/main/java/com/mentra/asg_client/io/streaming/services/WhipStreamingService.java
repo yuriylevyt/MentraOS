@@ -666,9 +666,10 @@ public class WhipStreamingService extends Service {
   }
 
   /**
-   * Seed WebRTC above its conservative startup default, cap the video encoder bitrate, and set
-   * degradation preference to MAINTAIN_FRAMERATE so WebRTC drops quality-per-frame instead of
-   * frame rate when thermals get tight.
+   * Seed WebRTC above its conservative startup default, cap the video encoder bitrate, and apply
+   * the requested degradation preference (default MAINTAIN_FRAMERATE: WebRTC drops
+   * quality-per-frame instead of frame rate when thermals get tight; MAINTAIN_RESOLUTION keeps
+   * the resolution and lowers frame rate instead).
    */
   private void applyBitrateConstraints() {
     int maximumBitrateBps = mStreamConfig.getVideoBitrate();
@@ -681,7 +682,7 @@ public class WhipStreamingService extends Service {
       RtpParameters params = sender.getParameters();
       if (params == null) continue;
 
-      params.degradationPreference = RtpParameters.DegradationPreference.MAINTAIN_FRAMERATE;
+      params.degradationPreference = resolveDegradationPreference(mStreamConfig.getDegradationPreference());
 
       for (RtpParameters.Encoding encoding : params.encodings) {
         encoding.maxBitrateBps = maximumBitrateBps;
@@ -697,7 +698,22 @@ public class WhipStreamingService extends Service {
     }
     Log.i(TAG, "Applied video bitrate constraints: start=" + (initialBitrateBps / 1000)
         + " kbps, max=" + (maximumBitrateBps / 1000)
-        + " kbps, degradation=MAINTAIN_FRAMERATE");
+        + " kbps, degradation=" + mStreamConfig.getDegradationPreference());
+  }
+
+  private static RtpParameters.DegradationPreference resolveDegradationPreference(String preference) {
+    if (preference == null) return RtpParameters.DegradationPreference.MAINTAIN_FRAMERATE;
+    switch (preference.trim().toUpperCase()) {
+      case "MAINTAIN_RESOLUTION":
+        return RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION;
+      case "BALANCED":
+        return RtpParameters.DegradationPreference.BALANCED;
+      case "DISABLED":
+        return RtpParameters.DegradationPreference.DISABLED;
+      case "MAINTAIN_FRAMERATE":
+      default:
+        return RtpParameters.DegradationPreference.MAINTAIN_FRAMERATE;
+    }
   }
 
   // -----------------------------------------------------------------------

@@ -123,4 +123,46 @@ public class WhipStreamConfigTest {
         assertFalse(c.isEchoCancellation());
         assertTrue(c.isNoiseSuppression());
     }
+
+    @Test
+    public void degradationPreference_defaultsToMaintainFramerate() {
+        WhipStreamConfig c = WhipStreamConfig.fromJson(null, null);
+        assertEquals("MAINTAIN_FRAMERATE", c.getDegradationPreference());
+    }
+
+    @Test
+    public void degradationPreference_parsesFullKey() throws JSONException {
+        JSONObject v = new JSONObject();
+        v.put("degradationPreference", "MAINTAIN_RESOLUTION");
+
+        WhipStreamConfig c = WhipStreamConfig.fromJson(v, null);
+        assertEquals("MAINTAIN_RESOLUTION", c.getDegradationPreference());
+    }
+
+    @Test
+    public void degradationPreference_parsesCompactKey() throws JSONException {
+        JSONObject v = new JSONObject();
+        v.put("dp", "MAINTAIN_RESOLUTION");
+
+        WhipStreamConfig c = WhipStreamConfig.fromJson(v, null);
+        assertEquals("MAINTAIN_RESOLUTION", c.getDegradationPreference());
+    }
+
+    @Test
+    public void degradationPreference_handlesCaseAndHyphens() throws JSONException {
+        JSONObject v = new JSONObject();
+        v.put("degradationPreference", "maintain-resolution");
+
+        WhipStreamConfig c = WhipStreamConfig.fromJson(v, null);
+        assertEquals("MAINTAIN_RESOLUTION", c.getDegradationPreference());
+    }
+
+    @Test
+    public void degradationPreference_fallsBackToDefaultOnUnknownValue() throws JSONException {
+        JSONObject v = new JSONObject();
+        v.put("degradationPreference", "UNKNOWN_POLICY");
+
+        WhipStreamConfig c = WhipStreamConfig.fromJson(v, null);
+        assertEquals("MAINTAIN_FRAMERATE", c.getDegradationPreference());
+    }
 }
