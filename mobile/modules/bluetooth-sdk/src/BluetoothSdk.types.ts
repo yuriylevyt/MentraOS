@@ -637,6 +637,8 @@ export type StreamStartRequest = {
   sound?: boolean
   video?: StreamVideoConfig
   audio?: StreamAudioConfig
+  authToken?: string
+  telemetry?: boolean
 }
 
 export type StreamKeepAliveRequest = {

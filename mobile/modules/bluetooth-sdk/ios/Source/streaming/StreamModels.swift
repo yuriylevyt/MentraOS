@@ -275,6 +275,7 @@ public struct StreamRequest {
     public let video: StreamVideoConfig?
     public let audio: StreamAudioConfig?
     public let authToken: String?
+    public let telemetry: Bool?
 
     public init(
         streamUrl: String,
@@ -282,7 +283,8 @@ public struct StreamRequest {
         sound: Bool = true,
         video: StreamVideoConfig? = nil,
         audio: StreamAudioConfig? = nil,
-        authToken: String? = nil
+        authToken: String? = nil,
+        telemetry: Bool? = nil
     ) {
         self.streamUrl = streamUrl
         self.streamId = streamId
@@ -290,9 +292,19 @@ public struct StreamRequest {
         self.video = video
         self.audio = audio
         self.authToken = authToken
+        self.telemetry = telemetry
     }
 
     init(values: [String: Any]) {
+        let telemetryValue: Bool?
+        if let telemetry = values["telemetry"] as? Bool {
+            telemetryValue = telemetry
+        } else if let tl = values["tl"] as? Bool {
+            telemetryValue = tl
+        } else {
+            telemetryValue = nil
+        }
+
         self.init(
             streamUrl: values["streamUrl"] as? String
                 ?? values["rtmpUrl"] as? String
@@ -303,7 +315,8 @@ public struct StreamRequest {
             sound: values["sound"] as? Bool ?? true,
             video: StreamVideoConfig(values: values["video"] as? [String: Any]),
             audio: StreamAudioConfig(values: values["audio"] as? [String: Any]),
-            authToken: values["authToken"] as? String ?? values["auth_token"] as? String
+            authToken: values["authToken"] as? String ?? values["auth_token"] as? String,
+            telemetry: telemetryValue
         )
     }
 
@@ -321,6 +334,9 @@ public struct StreamRequest {
         }
         if let authToken, !authToken.isEmpty {
             values["authToken"] = authToken
+        }
+        if let telemetry {
+            values["telemetry"] = telemetry
         }
         return values
     }
