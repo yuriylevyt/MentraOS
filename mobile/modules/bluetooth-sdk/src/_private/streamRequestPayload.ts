@@ -24,14 +24,14 @@ export function streamRequestParamsForNative(params: StreamStartRequest): Record
   if (params.audio !== undefined) {
     payload.audio = params.audio
   }
-  if (params.ice !== undefined) {
-    payload.ice = params.ice
+  if ((params as any).ice !== undefined) {
+    payload.ice = (params as any).ice
   }
-  if (params.captureAudio !== undefined) {
-    payload.captureAudio = params.captureAudio
+  if ((params as any).captureAudio !== undefined) {
+    payload.captureAudio = (params as any).captureAudio
   }
-  if (params.traceId !== undefined && params.traceId.length > 0) {
-    payload.traceId = params.traceId
+  if ((params as any).traceId !== undefined && (params as any).traceId.length > 0) {
+    payload.traceId = (params as any).traceId
   }
   if (params.authToken !== undefined && params.authToken.length > 0) {
     payload.authToken = params.authToken
