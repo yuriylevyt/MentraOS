@@ -9,6 +9,7 @@ import Foundation
 
 @MainActor
 class ObservableStore {
+    private let lock = NSLock()
     private var values: [String: Any] = [:]
     private var onEmit: ((String, [String: Any]) -> Void)?
     private var listeners: [String: (String, [String: Any]) -> Void] = [:]
@@ -21,35 +22,47 @@ class ObservableStore {
     }
 
     func configure(onEmit: @escaping (String, [String: Any]) -> Void) {
+        lock.lock()
         self.onEmit = onEmit
+        lock.unlock()
     }
 
     func addListener(_ listener: @escaping (String, [String: Any]) -> Void) -> String {
         let id = UUID().uuidString
+        lock.lock()
         listeners[id] = listener
+        lock.unlock()
         return id
     }
 
     func removeListener(_ id: String) {
+        lock.lock()
         listeners.removeValue(forKey: id)
+        lock.unlock()
     }
 
     func set(_ category: String, _ key: String, _ value: Any) {
         let normalizedCategory = Self.normalizeCategory(category)
         let fullKey = "\(normalizedCategory).\(key)"
+
+        lock.lock()
         let oldValue = values[fullKey]
 
         // Skip if unchanged
         if let old = oldValue, areEqual(old, value) {
+            lock.unlock()
             return
         }
 
         values[fullKey] = value
+        let emit = onEmit
+        let listenersSnapshot = Array(listeners.values)
+        lock.unlock()
 
-        // Emit immediately
+        // Emit immediately (outside the lock so listeners can re-enter the store)
         let changes = [key: value]
-        onEmit?(normalizedCategory, changes)
-        for listener in Array(listeners.values) {
+        emit?(normalizedCategory, changes)
+        for listener in listenersSnapshot {
             listener(normalizedCategory, changes)
         }
     }
@@ -57,20 +70,31 @@ class ObservableStore {
     func remove(_ category: String, _ key: String) {
         let normalizedCategory = Self.normalizeCategory(category)
         let fullKey = "\(normalizedCategory).\(key)"
-        guard values[fullKey] != nil else { return }
+        lock.lock()
+        guard values[fullKey] != nil else {
+            lock.unlock()
+            return
+        }
         values.removeValue(forKey: fullKey)
+        let emit = onEmit
+        let listenersSnapshot = Array(listeners.values)
+        lock.unlock()
         // Emit updated category snapshot so UI listeners clear the removed key
         let snapshot = getCategory(normalizedCategory)
-        onEmit?(normalizedCategory, snapshot)
-        for listener in Array(listeners.values) { listener(normalizedCategory, snapshot) }
+        emit?(normalizedCategory, snapshot)
+        for listener in listenersSnapshot { listener(normalizedCategory, snapshot) }
     }
 
     func get(_ category: String, _ key: String) -> Any? {
-        values["\(Self.normalizeCategory(category)).\(key)"]
+        lock.lock()
+        defer { lock.unlock() }
+        return values["\(Self.normalizeCategory(category)).\(key)"]
     }
 
     func wouldSkipSet(_ category: String, _ key: String, _ value: Any) -> Bool {
         let fullKey = "\(Self.normalizeCategory(category)).\(key)"
+        lock.lock()
+        defer { lock.unlock() }
         guard let oldValue = values[fullKey] else { return false }
         return areEqual(oldValue, value)
     }
@@ -78,6 +102,8 @@ class ObservableStore {
     func getCategory(_ category: String) -> [String: Any] {
         var result: [String: Any] = [:]
         let prefix = "\(Self.normalizeCategory(category))."
+        lock.lock()
+        defer { lock.unlock() }
         for (key, value) in values where key.hasPrefix(prefix) {
             let shortKey = String(key.dropFirst(prefix.count))
             result[shortKey] = value
