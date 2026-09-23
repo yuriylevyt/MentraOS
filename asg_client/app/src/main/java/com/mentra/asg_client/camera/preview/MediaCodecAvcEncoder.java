@@ -43,7 +43,7 @@ public class MediaCodecAvcEncoder {
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         format.setInteger(MediaFormat.KEY_BIT_RATE, bitrateKbps * 1000);
         format.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR);
-        format.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate);
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, encoderFrameRate(frameRate, maxFpsToEncoder));
         format.setFloat(MediaFormat.KEY_I_FRAME_INTERVAL, keyframeIntervalMs / 1000f);
         format.setInteger(MediaFormat.KEY_PRIORITY, 0); // realtime
         if (maxFpsToEncoder > 0 && maxFpsToEncoder < frameRate
@@ -51,6 +51,16 @@ public class MediaCodecAvcEncoder {
             format.setFloat(MediaFormat.KEY_MAX_FPS_TO_ENCODER, maxFpsToEncoder);
         }
         return format;
+    }
+
+    /**
+     * The rate that actually reaches the encoder: the sensor rate, capped by
+     * {@code maxFpsToEncoder} when that is set and lower. The MTK encoder turns
+     * KEY_I_FRAME_INTERVAL into a frame count with KEY_FRAME_RATE, and rate control uses it too,
+     * so giving it the sensor rate (15) while only 10 fps arrive spaced keyframes 1.5 s apart.
+     */
+    static int encoderFrameRate(int sensorFps, int maxFpsToEncoder) {
+        return maxFpsToEncoder > 0 ? Math.min(sensorFps, maxFpsToEncoder) : sensorFps;
     }
 
     /** Configures and starts the codec; returns the input Surface for the camera. */
