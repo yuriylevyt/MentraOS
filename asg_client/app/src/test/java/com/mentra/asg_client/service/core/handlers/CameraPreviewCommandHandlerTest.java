@@ -14,6 +14,7 @@ import com.mentra.asg_client.camera.model.QueuedPhotoRequestQueue;
 import com.mentra.asg_client.camera.preview.CameraPreviewFrameSource;
 import com.mentra.asg_client.camera.preview.CameraPreviewSession;
 import com.mentra.asg_client.camera.preview.PreviewConfig;
+import com.mentra.asg_client.camera.preview.PreviewFormat;
 import com.mentra.asg_client.camera.preview.PreviewFrameSink;
 import com.mentra.asg_client.service.communication.interfaces.ICommunicationManager;
 import java.util.ArrayList;
@@ -88,7 +89,7 @@ public class CameraPreviewCommandHandlerTest {
         handler =
                 new CameraPreviewCommandHandler(
                         comm,
-                        listener -> {
+                        (config, listener) -> {
                             FakeSource source = new FakeSource();
                             sources.add(source);
                             return new CameraPreviewSession(
@@ -201,6 +202,36 @@ public class CameraPreviewCommandHandlerTest {
     }
 
     @Test
+    public void start_handsTheParsedConfigToTheSessionFactory() throws Exception {
+        List<PreviewConfig> configs = new ArrayList<>();
+        CameraPreviewCommandHandler capturing =
+                new CameraPreviewCommandHandler(
+                        comm,
+                        (config, listener) -> {
+                            configs.add(config);
+                            return new CameraPreviewSession(
+                                    new FakeSource(), mock(PreviewFrameSink.class), () -> 0L, listener);
+                        },
+                        new CameraPreviewCommandHandler.CameraGate() {
+                            @Override
+                            public boolean isBusy() {
+                                return false;
+                            }
+
+                            @Override
+                            public void releaseIdleCamera() {}
+                        },
+                        scheduler);
+
+        capturing.handleCommand("start_camera_preview", startParams());
+
+        assertThat(configs).hasSize(1);
+        assertThat(configs.get(0).format).isEqualTo(PreviewFormat.JPEG);
+        assertThat(configs.get(0).url).isEqualTo(URL);
+        assertThat(configs.get(0).token).isEqualTo(TOKEN);
+    }
+
+    @Test
     public void stop_whenActive_sendsStoppedRequestedAndReleasesCamera() throws Exception {
         handler.handleCommand("start_camera_preview", startParams());
 
@@ -307,7 +338,7 @@ public class CameraPreviewCommandHandlerTest {
         CameraPreviewCommandHandler failing =
                 new CameraPreviewCommandHandler(
                         comm,
-                        listener -> {
+                        (config, listener) -> {
                             FakeSource source = new FakeSource();
                             source.failStart = true;
                             return new CameraPreviewSession(
@@ -339,7 +370,7 @@ public class CameraPreviewCommandHandlerTest {
         CameraPreviewCommandHandler ticking =
                 new CameraPreviewCommandHandler(
                         comm,
-                        listener ->
+                        (config, listener) ->
                                 new CameraPreviewSession(
                                         new FakeSource(),
                                         mock(PreviewFrameSink.class),
@@ -374,7 +405,7 @@ public class CameraPreviewCommandHandlerTest {
         CameraPreviewCommandHandler ticking =
                 new CameraPreviewCommandHandler(
                         comm,
-                        listener ->
+                        (config, listener) ->
                                 new CameraPreviewSession(
                                         new FakeSource(),
                                         mock(PreviewFrameSink.class),
@@ -407,7 +438,7 @@ public class CameraPreviewCommandHandlerTest {
         CameraPreviewCommandHandler ticking =
                 new CameraPreviewCommandHandler(
                         comm,
-                        listener ->
+                        (config, listener) ->
                                 new CameraPreviewSession(
                                         new FakeSource(),
                                         mock(PreviewFrameSink.class),

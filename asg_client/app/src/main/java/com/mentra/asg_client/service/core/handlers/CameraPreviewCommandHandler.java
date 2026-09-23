@@ -10,6 +10,7 @@ import com.mentra.asg_client.camera.preview.CameraPreviewSession;
 import com.mentra.asg_client.camera.preview.Clock;
 import com.mentra.asg_client.camera.preview.OkHttpPreviewFrameSink;
 import com.mentra.asg_client.camera.preview.PreviewConfig;
+import com.mentra.asg_client.camera.preview.PreviewSession;
 import com.mentra.asg_client.io.streaming.services.RtmpStreamingService;
 import com.mentra.asg_client.io.streaming.services.SrtStreamingService;
 import com.mentra.asg_client.io.streaming.services.StreamThermalReader;
@@ -38,9 +39,9 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
     static final String CMD_STOP = "stop_camera_preview";
     private static final String STATUS_TYPE = "camera_preview_status";
 
-    /** Builds a session wired to the given listener. Seam for tests. */
+    /** Builds the session for a start's format, wired to the given listener. Seam for tests. */
     interface SessionFactory {
-        CameraPreviewSession create(CameraPreviewSession.Listener listener);
+        PreviewSession create(PreviewConfig config, CameraPreviewSession.Listener listener);
     }
 
     /** Camera ownership checks. Seam for tests. */
@@ -63,7 +64,7 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
 
     private static final Object LOCK = new Object();
     // Guarded by LOCK.
-    private static CameraPreviewSession activeSession;
+    private static PreviewSession activeSession;
     private static Runnable cancelTick;
 
     private final ICommunicationManager communicationManager;
@@ -75,12 +76,7 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
     public CameraPreviewCommandHandler(Context context, ICommunicationManager communicationManager) {
         this(
                 communicationManager,
-                listener ->
-                        new CameraPreviewSession(
-                                new Camera2PreviewFrameSource(context),
-                                new OkHttpPreviewFrameSink(),
-                                new Clock.SystemMillisClock(),
-                                listener),
+                (config, listener) -> createSession(context, config, listener),
                 new DefaultCameraGate(),
                 new ExecutorTickScheduler(),
                 StreamThermalReader::readCpuTemperatureC);
@@ -154,7 +150,7 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
         cameraGate.releaseIdleCamera();
 
         SessionListener listener = new SessionListener(config);
-        CameraPreviewSession session = sessionFactory.create(listener);
+        PreviewSession session = sessionFactory.create(config, listener);
         listener.session = session;
         synchronized (LOCK) {
             activeSession = session;
@@ -173,7 +169,7 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
      * Thread-safe; a no-op when idle.
      */
     public static void stopIfActive(String reason) {
-        CameraPreviewSession session;
+        PreviewSession session;
         synchronized (LOCK) {
             session = activeSession;
         }
@@ -200,7 +196,7 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
         }
     }
 
-    private static void clearIfCurrent(CameraPreviewSession session) {
+    private static void clearIfCurrent(PreviewSession session) {
         Runnable cancel = null;
         synchronized (LOCK) {
             if (activeSession == session) {
@@ -211,6 +207,20 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
         }
         if (cancel != null) {
             cancel.run();
+        }
+    }
+
+    /** Production sessions: one source + transport pair per format (ADR 0013). */
+    static PreviewSession createSession(
+            Context context, PreviewConfig config, CameraPreviewSession.Listener listener) {
+        switch (config.format) {
+            case JPEG:
+            default:
+                return new CameraPreviewSession(
+                        new Camera2PreviewFrameSource(context),
+                        new OkHttpPreviewFrameSink(),
+                        new Clock.SystemMillisClock(),
+                        listener);
         }
     }
 
@@ -276,7 +286,7 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
 
     private final class SessionListener implements CameraPreviewSession.Listener {
         private final PreviewConfig config;
-        volatile CameraPreviewSession session;
+        volatile PreviewSession session;
 
         SessionListener(PreviewConfig config) {
             this.config = config;

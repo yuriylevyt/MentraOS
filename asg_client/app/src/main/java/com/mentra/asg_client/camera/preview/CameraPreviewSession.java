@@ -12,7 +12,7 @@ import com.mentra.asg_client.AsgConstants;
  * thread; all state transitions are synchronized on {@link #lock}, and listener/source/sink
  * calls are always made outside the lock so a re-entrant call from those cannot deadlock.
  */
-public class CameraPreviewSession {
+public class CameraPreviewSession implements PreviewSession {
 
     public interface Listener {
         void onStarted();
