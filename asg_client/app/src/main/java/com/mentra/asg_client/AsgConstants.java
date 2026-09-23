@@ -77,6 +77,12 @@ public class AsgConstants {
     /** Camera preview: cadence of the session tick pump (stats + max-duration checks). */
     public static final long CAMERA_PREVIEW_TICK_INTERVAL_MS = 1_000L;
 
+    /** Camera preview (H.264): drop the send queue when its oldest access unit is older than this. */
+    public static final long CAMERA_PREVIEW_STREAM_MAX_QUEUE_AGE_MS = 300L;
+
+    /** Camera preview (H.264): drop the send queue when it holds this many access units. */
+    public static final int CAMERA_PREVIEW_STREAM_MAX_QUEUED_UNITS = 90;
+
     /** Cadence for live stream bitrate, frame-rate, duration, and thermal telemetry. */
     public static final long STREAM_METRICS_INTERVAL_MS = 1_000L;
 
