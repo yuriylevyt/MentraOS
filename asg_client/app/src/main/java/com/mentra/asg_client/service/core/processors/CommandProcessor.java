@@ -14,6 +14,7 @@ import com.mentra.asg_client.service.communication.interfaces.IResponseBuilder;
 import com.mentra.asg_client.service.core.handlers.AuthTokenCommandHandler;
 import com.mentra.asg_client.service.core.handlers.BatteryCommandHandler;
 import com.mentra.asg_client.service.core.handlers.BleConfigCommandHandler;
+import com.mentra.asg_client.service.core.handlers.CameraPreviewCommandHandler;
 import com.mentra.asg_client.service.core.handlers.GalleryCommandHandler;
 import com.mentra.asg_client.service.core.handlers.GalleryModeCommandHandler;
 import com.mentra.asg_client.service.core.handlers.I2SAudioCommandHandler;
@@ -478,6 +479,10 @@ public class CommandProcessor {
 
             commandHandlerRegistry.registerHandler(new PairingAudioCommandHandler(context));
             Log.d(TAG, "✅ Registered PairingAudioCommandHandler");
+
+            commandHandlerRegistry.registerHandler(
+                    new CameraPreviewCommandHandler(context, communicationManager));
+            Log.d(TAG, "✅ Registered CameraPreviewCommandHandler");
 
             Log.i(
                     TAG,

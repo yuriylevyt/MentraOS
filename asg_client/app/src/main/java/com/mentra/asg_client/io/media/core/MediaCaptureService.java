@@ -35,6 +35,7 @@ import com.mentra.asg_client.io.storage.StorageManager;
 import com.mentra.asg_client.io.streaming.services.RtmpStreamingService;
 import com.mentra.asg_client.io.streaming.services.SrtStreamingService;
 import com.mentra.asg_client.io.streaming.services.WhipStreamingService;
+import com.mentra.asg_client.service.core.handlers.CameraPreviewCommandHandler;
 import com.mentra.asg_client.logging.BleTraceLogger;
 import com.mentra.asg_client.service.core.CameraRestartCooldown;
 import com.mentra.asg_client.service.core.constants.BatteryConstants;
@@ -1198,6 +1199,8 @@ public class MediaCaptureService {
             boolean enableSound,
             int maxRecordingTimeMinutes,
             boolean save) {
+        // The camera preview must release the camera before this capture opens it.
+        CameraPreviewCommandHandler.stopIfActive("preempted");
         // Check if any streaming is active - videos cannot interrupt streams
         if (RtmpStreamingService.isStreaming()
                 || SrtStreamingService.isStreaming()
@@ -1969,6 +1972,8 @@ public class MediaCaptureService {
             Log.i(TAG, "⏱️ [TIMING] LOCAL Photo request START");
         }
 
+        // The camera preview must release the camera before this capture opens it.
+        CameraPreviewCommandHandler.stopIfActive("preempted");
         // Check if any streaming is active - photos cannot interrupt streams
         if (RtmpStreamingService.isStreaming()
                 || SrtStreamingService.isStreaming()
@@ -2299,6 +2304,8 @@ public class MediaCaptureService {
         final boolean textModeRequested = PhotoMode.TEXT.equals(mode);
         String captureSize = PhotoMode.captureSize(mode, size);
 
+        // The camera preview must release the camera before this capture opens it.
+        CameraPreviewCommandHandler.stopIfActive("preempted");
         // Photos cannot interrupt streams
         if (RtmpStreamingService.isStreaming()
                 || SrtStreamingService.isStreaming()
@@ -2667,6 +2674,8 @@ public class MediaCaptureService {
                 TAG,
                 "Taking photo and uploading to " + webhookUrl + " with compression: " + compress);
 
+        // The camera preview must release the camera before this capture opens it.
+        CameraPreviewCommandHandler.stopIfActive("preempted");
         // Check if any streaming is active - photos cannot interrupt streams
         if (RtmpStreamingService.isStreaming()
                 || SrtStreamingService.isStreaming()
@@ -5047,6 +5056,8 @@ public class MediaCaptureService {
         }
         logBlePhotoStep(requestId, "ble_capture_accepted");
 
+        // The camera preview must release the camera before this capture opens it.
+        CameraPreviewCommandHandler.stopIfActive("preempted");
         // Check if any streaming is active - photos cannot interrupt streams
         logBlePhotoStep(requestId, "streaming_check", "checking RTMP, SRT, and WHIP camera usage");
         if (RtmpStreamingService.isStreaming()
@@ -6596,6 +6607,9 @@ public class MediaCaptureService {
                     "Bluetooth photo transfer in progress");
             return false;
         }
+
+        // Warm-up opens the camera; the preview must release it first.
+        CameraPreviewCommandHandler.stopIfActive("preempted");
 
         PhotoCaptureSettings warmSettings =
                 captureSettings != null ? captureSettings : PhotoCaptureSettings.EMPTY;

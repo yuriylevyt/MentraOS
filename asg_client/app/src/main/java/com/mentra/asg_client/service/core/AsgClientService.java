@@ -39,6 +39,7 @@ import com.mentra.asg_client.io.ota.utils.OtaConstants;
 import com.mentra.asg_client.io.streaming.events.StreamingEvent;
 import com.mentra.asg_client.logging.BleTraceLogger;
 import com.mentra.asg_client.service.communication.interfaces.ICommunicationManager;
+import com.mentra.asg_client.service.core.handlers.CameraPreviewCommandHandler;
 import com.mentra.asg_client.service.core.processors.CommandProcessor;
 import com.mentra.asg_client.service.core.processors.CommandProtocolDetector;
 import com.mentra.asg_client.service.media.interfaces.IMediaManager;
@@ -1093,7 +1094,8 @@ public class AsgClientService extends Service implements NetworkStateListener, T
             Log.d(TAG, "🎯 Enabling swipe volume control on Bluetooth connection");
             handleSwipeVolumeControl(false);
         } else {
-            Log.d(TAG, "📶 Bluetooth disconnected - no additional actions needed");
+            Log.d(TAG, "📶 Bluetooth disconnected - stopping camera preview if active");
+            CameraPreviewCommandHandler.stopIfActive("ble_disconnected");
         }
     }
 

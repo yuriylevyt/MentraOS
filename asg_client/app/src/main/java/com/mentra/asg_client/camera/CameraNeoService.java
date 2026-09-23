@@ -472,6 +472,21 @@ public class CameraNeoService extends LifecycleService {
     }
 
     /**
+     * True if a photo capture is actively in use ({@link #isCameraInUse()}) OR a photo request is
+     * waiting to be dispatched: enqueued before the service instance exists, or sitting in the
+     * global queue while the camera is still opening (shot state stays {@code IDLE} until {@link
+     * com.mentra.asg_client.camera.lifecycle.PhotoSession#pollFirstQueuedRequestIntoCurrent()} runs
+     * from {@code onConfigured}). {@link #isCameraInUse()} alone misses both of these windows,
+     * letting {@code start_camera_preview} evict the camera out from under a queued/opening photo
+     * (cameraserver "evicting conflicting client" -> the photo fails with error -38).
+     *
+     * @return true if a photo capture is in use or pending; false only when fully idle.
+     */
+    public static boolean isCameraBusyOrPending() {
+        return isCameraInUse() || !QueuedPhotoRequestQueue.getInstance().isEmpty();
+    }
+
+    /**
      * Predicts whether a photo with the given parameters would be a "warm" capture — one that
      * reuses the already-open camera/ISP instead of paying the 1–2s cold startup cost on Mentra
      * Live. Callers use this to choose between a short feedback sound (warm, capture is quick) and

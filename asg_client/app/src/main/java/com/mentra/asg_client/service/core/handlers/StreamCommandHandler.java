@@ -179,6 +179,9 @@ public class StreamCommandHandler implements ICommandHandler {
                 return false;
             }
 
+            // The camera preview must release the camera before a stream can open it.
+            CameraPreviewCommandHandler.stopIfActive("preempted");
+
             // Stop any existing stream
             boolean stoppedExistingStream = stopAllServices();
             Log.i(

@@ -39,6 +39,44 @@ public class AsgConstants {
 
     public static final int CAMERA_ROI_POSITION_DEFAULT = 0;
 
+    /** Camera preview: window of consecutive failed POSTs before auto-stopping the session. */
+    public static final long CAMERA_PREVIEW_FAILURE_WINDOW_MS = 5_000L;
+
+    /** Camera preview: total session duration cap before auto-stopping. */
+    public static final long CAMERA_PREVIEW_MAX_DURATION_MS = 600_000L;
+
+    /** Camera preview: cadence for emitting cumulative sent/dropped/failed stats. */
+    public static final long CAMERA_PREVIEW_STATS_INTERVAL_MS = 2_000L;
+
+    /** Camera preview: connect timeout for the frame-sink OkHttp client. */
+    public static final long CAMERA_PREVIEW_HTTP_CONNECT_TIMEOUT_MS = 2_000L;
+
+    /** Camera preview: write timeout for the frame-sink OkHttp client. */
+    public static final long CAMERA_PREVIEW_HTTP_WRITE_TIMEOUT_MS = 3_000L;
+
+    /** Camera preview: read timeout for the frame-sink OkHttp client. */
+    public static final long CAMERA_PREVIEW_HTTP_READ_TIMEOUT_MS = 3_000L;
+
+    /** Camera preview: overall call timeout for the frame-sink OkHttp client. */
+    public static final long CAMERA_PREVIEW_HTTP_CALL_TIMEOUT_MS = 3_000L;
+
+    /** Camera preview: frame interval default and clamp bounds for start_camera_preview. */
+    public static final long CAMERA_PREVIEW_DEFAULT_INTERVAL_MS = 100L;
+    public static final long CAMERA_PREVIEW_MIN_INTERVAL_MS = 50L;
+    public static final long CAMERA_PREVIEW_MAX_INTERVAL_MS = 5_000L;
+
+    /** Camera preview: default frame size for start_camera_preview. */
+    public static final int CAMERA_PREVIEW_DEFAULT_WIDTH = 1280;
+    public static final int CAMERA_PREVIEW_DEFAULT_HEIGHT = 720;
+
+    /** Camera preview: JPEG quality default and clamp bounds for start_camera_preview. */
+    public static final int CAMERA_PREVIEW_DEFAULT_QUALITY = 60;
+    public static final int CAMERA_PREVIEW_MIN_QUALITY = 30;
+    public static final int CAMERA_PREVIEW_MAX_QUALITY = 95;
+
+    /** Camera preview: cadence of the session tick pump (stats + max-duration checks). */
+    public static final long CAMERA_PREVIEW_TICK_INTERVAL_MS = 1_000L;
+
     /** Cadence for live stream bitrate, frame-rate, duration, and thermal telemetry. */
     public static final long STREAM_METRICS_INTERVAL_MS = 1_000L;
 

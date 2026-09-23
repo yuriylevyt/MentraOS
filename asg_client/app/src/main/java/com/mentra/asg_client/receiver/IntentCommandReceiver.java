@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
+import com.mentra.asg_client.BuildConfig;
 import com.mentra.asg_client.service.core.AsgClientService;
 import com.mentra.asg_client.service.core.processors.CommandProcessor;
 
@@ -80,11 +81,25 @@ public class IntentCommandReceiver extends BroadcastReceiver {
 
         try {
             JSONObject json = new JSONObject(jsonString);
-            Log.i(TAG, "📋 Processing intent command: " + json.optString("type", "unknown"));
+            String type = json.optString("type", "unknown");
+            if (!isAllowedViaIntent(type, BuildConfig.DEBUG)) {
+                Log.w(TAG, "🚫 Rejected intent command in release build: " + type);
+                return;
+            }
+            Log.i(TAG, "📋 Processing intent command: " + type);
             processor.processJsonCommand(json);
         } catch (Exception e) {
             Log.e(TAG, "💥 Failed to parse/process JSON command", e);
         }
+    }
+
+    /**
+     * Any app on the device can send this broadcast. Commands that stream the camera to an
+     * arbitrary URL are therefore only accepted here in debug builds; release builds take them
+     * from the phone over BLE only.
+     */
+    static boolean isAllowedViaIntent(String type, boolean debugBuild) {
+        return debugBuild || !"start_camera_preview".equals(type);
     }
 
     private void handleRegisterListener(Intent intent) {
