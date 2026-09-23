@@ -12,6 +12,7 @@ import com.mentra.asg_client.camera.preview.OkHttpPreviewFrameSink;
 import com.mentra.asg_client.camera.preview.PreviewConfig;
 import com.mentra.asg_client.io.streaming.services.RtmpStreamingService;
 import com.mentra.asg_client.io.streaming.services.SrtStreamingService;
+import com.mentra.asg_client.io.streaming.services.StreamThermalReader;
 import com.mentra.asg_client.io.streaming.services.WhipStreamingService;
 import com.mentra.asg_client.service.communication.interfaces.ICommunicationManager;
 import com.mentra.asg_client.service.legacy.interfaces.ICommandHandler;
@@ -55,6 +56,11 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
         Runnable schedule(Runnable task, long periodMs);
     }
 
+    /** Reads CPU temperature in Celsius; returns Double.NaN when unavailable. Seam for tests. */
+    interface ThermalReader {
+        double readCpuTemperatureC();
+    }
+
     private static final Object LOCK = new Object();
     // Guarded by LOCK.
     private static CameraPreviewSession activeSession;
@@ -64,6 +70,7 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
     private final SessionFactory sessionFactory;
     private final CameraGate cameraGate;
     private final TickScheduler tickScheduler;
+    private final ThermalReader thermalReader;
 
     public CameraPreviewCommandHandler(Context context, ICommunicationManager communicationManager) {
         this(
@@ -75,7 +82,8 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
                                 new Clock.SystemMillisClock(),
                                 listener),
                 new DefaultCameraGate(),
-                new ExecutorTickScheduler());
+                new ExecutorTickScheduler(),
+                StreamThermalReader::readCpuTemperatureC);
     }
 
     CameraPreviewCommandHandler(
@@ -83,10 +91,25 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
             SessionFactory sessionFactory,
             CameraGate cameraGate,
             TickScheduler tickScheduler) {
+        this(
+                communicationManager,
+                sessionFactory,
+                cameraGate,
+                tickScheduler,
+                StreamThermalReader::readCpuTemperatureC);
+    }
+
+    CameraPreviewCommandHandler(
+            ICommunicationManager communicationManager,
+            SessionFactory sessionFactory,
+            CameraGate cameraGate,
+            TickScheduler tickScheduler,
+            ThermalReader thermalReader) {
         this.communicationManager = communicationManager;
         this.sessionFactory = sessionFactory;
         this.cameraGate = cameraGate;
         this.tickScheduler = tickScheduler;
+        this.thermalReader = thermalReader;
     }
 
     @Override
@@ -292,6 +315,10 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
                 msg.put("sent", sent);
                 msg.put("dropped", dropped);
                 msg.put("failed", failed);
+                double tempC = thermalReader.readCpuTemperatureC();
+                if (Double.isFinite(tempC)) {
+                    msg.put("temperatureC", Math.round(tempC * 10d) / 10d);
+                }
                 msg.put("timestamp", System.currentTimeMillis());
                 send(msg);
             } catch (JSONException e) {

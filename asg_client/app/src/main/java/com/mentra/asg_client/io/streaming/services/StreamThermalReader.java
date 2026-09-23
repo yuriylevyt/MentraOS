@@ -8,13 +8,13 @@ import java.io.FileReader;
 import java.io.IOException;
 
 /** Reads the Mentra Live CPU thermal zone without assuming its numeric index. */
-final class StreamThermalReader {
+public final class StreamThermalReader {
     private static volatile String sCpuTemperaturePath;
     private static volatile boolean sDiscoveryAttempted;
 
     private StreamThermalReader() {}
 
-    static double readCpuTemperatureC() {
+    public static double readCpuTemperatureC() {
         String path = findCpuTemperaturePath();
         if (path == null) {
             return Double.NaN;

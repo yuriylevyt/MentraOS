@@ -367,4 +367,70 @@ public class CameraPreviewCommandHandlerTest {
         assertThat(last.getInt("failed")).isZero();
         assertThat(last.has("timestamp")).isTrue();
     }
+
+    @Test
+    public void tick_pumpsSessionStats_includesTemperatureWhenFinite() throws Exception {
+        long[] now = {0L};
+        CameraPreviewCommandHandler ticking =
+                new CameraPreviewCommandHandler(
+                        comm,
+                        listener ->
+                                new CameraPreviewSession(
+                                        new FakeSource(),
+                                        mock(PreviewFrameSink.class),
+                                        () -> now[0],
+                                        listener),
+                        new CameraPreviewCommandHandler.CameraGate() {
+                            @Override
+                            public boolean isBusy() {
+                                return false;
+                            }
+
+                            @Override
+                            public void releaseIdleCamera() {}
+                        },
+                        scheduler,
+                        () -> 43.52d);
+        ticking.handleCommand("start_camera_preview", startParams());
+
+        now[0] = 2_000L;
+        scheduler.scheduled.get(0).run();
+
+        JSONObject last = sent().get(sent().size() - 1);
+        assertThat(last.getString("status")).isEqualTo("stats");
+        assertThat(last.getDouble("temperatureC")).isEqualTo(43.5d);
+    }
+
+    @Test
+    public void tick_pumpsSessionStats_omitsTemperatureWhenNaN() throws Exception {
+        long[] now = {0L};
+        CameraPreviewCommandHandler ticking =
+                new CameraPreviewCommandHandler(
+                        comm,
+                        listener ->
+                                new CameraPreviewSession(
+                                        new FakeSource(),
+                                        mock(PreviewFrameSink.class),
+                                        () -> now[0],
+                                        listener),
+                        new CameraPreviewCommandHandler.CameraGate() {
+                            @Override
+                            public boolean isBusy() {
+                                return false;
+                            }
+
+                            @Override
+                            public void releaseIdleCamera() {}
+                        },
+                        scheduler,
+                        () -> Double.NaN);
+        ticking.handleCommand("start_camera_preview", startParams());
+
+        now[0] = 2_000L;
+        scheduler.scheduled.get(0).run();
+
+        JSONObject last = sent().get(sent().size() - 1);
+        assertThat(last.getString("status")).isEqualTo("stats");
+        assertThat(last.has("temperatureC")).isFalse();
+    }
 }
