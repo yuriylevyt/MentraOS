@@ -5,12 +5,16 @@ import android.util.Log;
 
 import com.mentra.asg_client.AsgConstants;
 import com.mentra.asg_client.camera.CameraNeoService;
+import com.mentra.asg_client.camera.preview.Camera2H264Source;
 import com.mentra.asg_client.camera.preview.Camera2PreviewFrameSource;
 import com.mentra.asg_client.camera.preview.CameraPreviewSession;
 import com.mentra.asg_client.camera.preview.Clock;
+import com.mentra.asg_client.camera.preview.H264PreviewSession;
 import com.mentra.asg_client.camera.preview.OkHttpPreviewFrameSink;
 import com.mentra.asg_client.camera.preview.PreviewConfig;
+import com.mentra.asg_client.camera.preview.PreviewFormat;
 import com.mentra.asg_client.camera.preview.PreviewSession;
+import com.mentra.asg_client.camera.preview.PreviewStreamTransport;
 import com.mentra.asg_client.io.streaming.services.RtmpStreamingService;
 import com.mentra.asg_client.io.streaming.services.SrtStreamingService;
 import com.mentra.asg_client.io.streaming.services.StreamThermalReader;
@@ -133,6 +137,11 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
     }
 
     private boolean handleStart(JSONObject data) {
+        if (data != null && PreviewFormat.fromWire(data.optString("format", "")) == null) {
+            Log.w(TAG, "start_camera_preview rejected - unsupported format " + data.optString("format"));
+            sendStatus("stopped", "reason", "unsupported_format");
+            return false;
+        }
         PreviewConfig config = parseConfig(data);
         if (config == null) {
             Log.w(TAG, "start_camera_preview rejected - invalid params");
@@ -158,8 +167,9 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
                     tickScheduler.schedule(
                             session::tick, AsgConstants.CAMERA_PREVIEW_TICK_INTERVAL_MS);
         }
-        Log.i(TAG, "Starting camera preview intervalMs=" + config.intervalMs + " " + config.width
-                + "x" + config.height + " q=" + config.quality);
+        Log.i(TAG, "Starting camera preview format=" + config.format.wire + " intervalMs="
+                + config.intervalMs + " " + config.width + "x" + config.height + " q=" + config.quality
+                + " bitrateKbps=" + config.bitrateKbps + " keyframeIntervalMs=" + config.keyframeIntervalMs);
         session.start(config);
         return session.isActive();
     }
@@ -214,6 +224,14 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
     static PreviewSession createSession(
             Context context, PreviewConfig config, CameraPreviewSession.Listener listener) {
         switch (config.format) {
+            case H264: {
+                Clock clock = new Clock.SystemMillisClock();
+                return new H264PreviewSession(
+                        new Camera2H264Source(context),
+                        (cfg, events) -> new PreviewStreamTransport(cfg.url, cfg.token, clock, events),
+                        clock,
+                        listener);
+            }
             case JPEG:
             default:
                 return new CameraPreviewSession(
@@ -225,7 +243,7 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
     }
 
     /**
-     * Parses and clamps start params. Returns null when url (http/https) or token is missing.
+     * Parses and clamps start params. Returns null when url (http/https) or token is missing, the format is unknown, or an H.264 start has a non-http URL (the stream is a plain socket).
      */
     static PreviewConfig parseConfig(JSONObject data) {
         if (data == null) {
@@ -257,7 +275,25 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
             width = AsgConstants.CAMERA_PREVIEW_DEFAULT_WIDTH;
             height = AsgConstants.CAMERA_PREVIEW_DEFAULT_HEIGHT;
         }
-        return new PreviewConfig(width, height, quality, intervalMs, url, token);
+        PreviewFormat format = PreviewFormat.fromWire(data.optString("format", ""));
+        if (format == null || (format == PreviewFormat.H264 && !lowerUrl.startsWith("http://"))) {
+            return null;
+        }
+        int bitrateKbps =
+                (int)
+                        clamp(
+                                data.optInt("bitrateKbps", AsgConstants.CAMERA_PREVIEW_DEFAULT_BITRATE_KBPS),
+                                AsgConstants.CAMERA_PREVIEW_MIN_BITRATE_KBPS,
+                                AsgConstants.CAMERA_PREVIEW_MAX_BITRATE_KBPS);
+        long keyframeIntervalMs =
+                clamp(
+                        data.optLong(
+                                "keyframeIntervalMs",
+                                AsgConstants.CAMERA_PREVIEW_DEFAULT_KEYFRAME_INTERVAL_MS),
+                        AsgConstants.CAMERA_PREVIEW_MIN_KEYFRAME_INTERVAL_MS,
+                        AsgConstants.CAMERA_PREVIEW_MAX_KEYFRAME_INTERVAL_MS);
+        return new PreviewConfig(
+                width, height, quality, intervalMs, url, token, format, bitrateKbps, keyframeIntervalMs);
     }
 
     private static long clamp(long value, long min, long max) {
@@ -298,6 +334,11 @@ public class CameraPreviewCommandHandler implements ICommandHandler {
                 JSONObject msg = new JSONObject();
                 msg.put("type", STATUS_TYPE);
                 msg.put("status", "started");
+                msg.put("format", config.format.wire);
+                if (config.format == PreviewFormat.H264) {
+                    msg.put("bitrateKbps", config.bitrateKbps);
+                    msg.put("keyframeIntervalMs", config.keyframeIntervalMs);
+                }
                 msg.put("intervalMs", config.intervalMs);
                 msg.put("width", config.width);
                 msg.put("height", config.height);

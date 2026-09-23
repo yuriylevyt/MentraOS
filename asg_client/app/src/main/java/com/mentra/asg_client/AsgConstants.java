@@ -83,6 +83,16 @@ public class AsgConstants {
     /** Camera preview (H.264): drop the send queue when it holds this many access units. */
     public static final int CAMERA_PREVIEW_STREAM_MAX_QUEUED_UNITS = 90;
 
+    /** Camera preview (H.264): bitrate default and clamp bounds for start_camera_preview. */
+    public static final int CAMERA_PREVIEW_DEFAULT_BITRATE_KBPS = 1_500;
+    public static final int CAMERA_PREVIEW_MIN_BITRATE_KBPS = 250;
+    public static final int CAMERA_PREVIEW_MAX_BITRATE_KBPS = 8_000;
+
+    /** Camera preview (H.264): keyframe interval default and clamp bounds for start_camera_preview. */
+    public static final long CAMERA_PREVIEW_DEFAULT_KEYFRAME_INTERVAL_MS = 1_000L;
+    public static final long CAMERA_PREVIEW_MIN_KEYFRAME_INTERVAL_MS = 250L;
+    public static final long CAMERA_PREVIEW_MAX_KEYFRAME_INTERVAL_MS = 10_000L;
+
     /** Cadence for live stream bitrate, frame-rate, duration, and thermal telemetry. */
     public static final long STREAM_METRICS_INTERVAL_MS = 1_000L;
 

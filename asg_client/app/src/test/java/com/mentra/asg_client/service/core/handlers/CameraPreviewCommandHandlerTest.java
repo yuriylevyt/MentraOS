@@ -464,4 +464,55 @@ public class CameraPreviewCommandHandlerTest {
         assertThat(last.getString("status")).isEqualTo("stats");
         assertThat(last.has("temperatureC")).isFalse();
     }
+
+    @Test
+    public void parseConfig_readsFormatBitrateAndKeyframeInterval_withDefaultsAndClamps() throws Exception {
+        assertThat(CameraPreviewCommandHandler.parseConfig(startParams()).format).isEqualTo(PreviewFormat.JPEG);
+
+        PreviewConfig h264 = CameraPreviewCommandHandler.parseConfig(startParams().put("format", "h264"));
+        assertThat(h264.format).isEqualTo(PreviewFormat.H264);
+        assertThat(h264.bitrateKbps).isEqualTo(1500);
+        assertThat(h264.keyframeIntervalMs).isEqualTo(1000L);
+
+        PreviewConfig low = CameraPreviewCommandHandler.parseConfig(
+                startParams().put("format", "h264").put("bitrateKbps", 10).put("keyframeIntervalMs", 1));
+        assertThat(low.bitrateKbps).isEqualTo(250);
+        assertThat(low.keyframeIntervalMs).isEqualTo(250L);
+
+        PreviewConfig high = CameraPreviewCommandHandler.parseConfig(
+                startParams().put("format", "h264").put("bitrateKbps", 99_999).put("keyframeIntervalMs", 999_999));
+        assertThat(high.bitrateKbps).isEqualTo(8000);
+        assertThat(high.keyframeIntervalMs).isEqualTo(10_000L);
+
+        assertThat(CameraPreviewCommandHandler.parseConfig(
+                new JSONObject().put("url", "https://h:1/stream").put("token", TOKEN).put("format", "h264")))
+                .isNull();
+    }
+
+    @Test
+    public void start_withUnknownFormat_repliesUnsupportedFormatAndCreatesNoSession() throws Exception {
+        boolean handled = handler.handleCommand("start_camera_preview", startParams().put("format", "vp8"));
+
+        assertThat(handled).isFalse();
+        assertThat(sources).isEmpty();
+        JSONObject msg = sent().get(0);
+        assertThat(msg.getString("status")).isEqualTo("stopped");
+        assertThat(msg.getString("reason")).isEqualTo("unsupported_format");
+    }
+
+    @Test
+    public void startedStatus_reportsTheFormat_andTheH264Settings() throws Exception {
+        handler.handleCommand("start_camera_preview", startParams());
+        JSONObject jpeg = sent().get(0);
+        assertThat(jpeg.getString("format")).isEqualTo("jpeg");
+        assertThat(jpeg.has("bitrateKbps")).isFalse();
+
+        handler.handleCommand(
+                "start_camera_preview", startParams().put("format", "h264").put("bitrateKbps", 2000));
+        JSONObject h264 = sent().get(sent().size() - 1);
+        assertThat(h264.getString("status")).isEqualTo("started");
+        assertThat(h264.getString("format")).isEqualTo("h264");
+        assertThat(h264.getInt("bitrateKbps")).isEqualTo(2000);
+        assertThat(h264.getLong("keyframeIntervalMs")).isEqualTo(1000L);
+    }
 }
