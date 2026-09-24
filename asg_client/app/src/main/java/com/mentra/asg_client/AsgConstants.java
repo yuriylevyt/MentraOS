@@ -42,9 +42,6 @@ public class AsgConstants {
     /** Camera preview: window of consecutive failed POSTs before auto-stopping the session. */
     public static final long CAMERA_PREVIEW_FAILURE_WINDOW_MS = 5_000L;
 
-    /** Camera preview: total session duration cap before auto-stopping. */
-    public static final long CAMERA_PREVIEW_MAX_DURATION_MS = 600_000L;
-
     /** Camera preview: cadence for emitting cumulative sent/dropped/failed stats. */
     public static final long CAMERA_PREVIEW_STATS_INTERVAL_MS = 2_000L;
 

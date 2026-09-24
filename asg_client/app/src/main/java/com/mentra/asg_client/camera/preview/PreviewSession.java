@@ -11,6 +11,6 @@ public interface PreviewSession {
 
     boolean isActive();
 
-    /** Pumps the periodic max-duration, failure and stats checks; safe to call from a timer. */
+    /** Pumps the periodic failure and stats checks; safe to call from a timer. */
     void tick();
 }

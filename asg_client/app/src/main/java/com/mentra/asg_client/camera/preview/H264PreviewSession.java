@@ -5,8 +5,8 @@ import com.mentra.asg_client.AsgConstants;
 /**
  * Runs an H.264 camera preview (ADR 0013): access units from an {@link AccessUnitSource} go to a
  * {@link StreamTransport}. Same stop rules as the JPEG {@link CameraPreviewSession}: 5 s of
- * consecutive transport failures, 5 s with a connection open but nothing delivered, the 10 minute
- * cap, a camera/encoder error, or an explicit stop. Plus a 401, which stops at once
+ * consecutive transport failures, 5 s with a connection open but nothing delivered, a
+ * camera/encoder error, or an explicit stop. Plus a 401, which stops at once
  * ({@code unauthorized}).
  *
  * <p>A failed transport is replaced on the next {@link #tick()} (about once a second), with a
@@ -33,7 +33,6 @@ public class H264PreviewSession implements PreviewSession {
     private PreviewConfig config;
     private StreamTransport transport;
     private long transportGeneration;
-    private long startedAtMs;
     private long failureStreakStartMs;
     private long lastProgressMs;
     private long lastStatsEmitMs;
@@ -83,7 +82,6 @@ public class H264PreviewSession implements PreviewSession {
             active = true;
             this.config = config;
             long now = clock.nowMs();
-            startedAtMs = now;
             lastStatsEmitMs = now;
             failureStreakStartMs = NOT_TRACKING;
             sent = 0;
@@ -124,9 +122,7 @@ public class H264PreviewSession implements PreviewSession {
             }
             long now = clock.nowMs();
             long window = AsgConstants.CAMERA_PREVIEW_FAILURE_WINDOW_MS;
-            if (now - startedAtMs >= AsgConstants.CAMERA_PREVIEW_MAX_DURATION_MS) {
-                stopReason = "max_duration";
-            } else if (failureStreakStartMs != NOT_TRACKING && now - failureStreakStartMs >= window) {
+            if (failureStreakStartMs != NOT_TRACKING && now - failureStreakStartMs >= window) {
                 stopReason = "post_failures";
             } else if (transport != null && now - lastProgressMs >= window) {
                 // Connected (or connecting) but nothing delivered: a stuck write never fails.

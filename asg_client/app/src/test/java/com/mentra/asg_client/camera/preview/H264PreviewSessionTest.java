@@ -90,7 +90,7 @@ public class H264PreviewSessionTest {
     }
 
     @Test
-    public void keyframeNeeded_asksTheEncoder_andDropsShowInStats_untilMaxDuration() {
+    public void keyframeNeeded_asksTheEncoder_andDropsShowInStats() {
         session.start(CONFIG);
         current().events.onConnected();
         current().events.onKeyframeNeeded();
@@ -99,15 +99,27 @@ public class H264PreviewSessionTest {
 
         now[0] = 2_000L;
         session.tick();
-        now[0] = 600_000L;
-        session.tick();
 
         assertEquals(1, source.keyframeRequests);
         assertEquals(1, listener.stats.size());
         assertEquals(1, listener.stats.get(0)[0]);
         assertEquals(3, listener.stats.get(0)[1]);
         assertEquals(0, listener.stats.get(0)[2]);
-        assertEquals(List.of("max_duration"), listener.stopped);
+        assertEquals(List.of(), listener.stopped);
+    }
+
+    @Test
+    public void keepsRunningPastTenMinutes_whileUnitsAreDelivered() {
+        session.start(CONFIG);
+        current().events.onConnected();
+        for (long t = 1_000L; t <= 720_000L; t += 1_000L) { // past the old 600 s cap
+            now[0] = t;
+            current().events.onDelivered(P);
+            session.tick();
+        }
+
+        assertEquals(List.of(), listener.stopped);
+        assertTrue(session.isActive());
     }
 
     @Test
@@ -135,7 +147,7 @@ public class H264PreviewSessionTest {
         }
         assertEquals(5, transports.size());
         assertEquals(4, source.keyframeRequests);
-        assertTrue(listener.stopped.isEmpty());
+        assertEquals(List.of(), listener.stopped);
 
         now[0] = 5_000L;
         session.tick();
@@ -154,7 +166,7 @@ public class H264PreviewSessionTest {
 
         now[0] = 5_900L;
         session.tick();
-        assertTrue(listener.stopped.isEmpty());
+        assertEquals(List.of(), listener.stopped);
 
         now[0] = 6_000L;
         session.tick();

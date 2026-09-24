@@ -6,7 +6,7 @@ import com.mentra.asg_client.AsgConstants;
  * Forwards frames from a {@link CameraPreviewFrameSource} (which paces its own captures to the
  * frame interval) into a {@link PreviewFrameSink}, dropping a frame while a send is in flight,
  * and auto-stops on 5s of consecutive POST
- * failures, a 10 minute cap, a camera error, or an explicit stop.
+ * failures, a camera error, or an explicit stop.
  *
  * <p>Frame callbacks arrive on a camera background thread and sink callbacks on an OkHttp
  * thread; all state transitions are synchronized on {@link #lock}, and listener/source/sink
@@ -45,7 +45,6 @@ public class CameraPreviewSession implements PreviewSession {
 
     // Guarded by lock.
     private boolean active;
-    private long startedAtMs;
     /** Start time of the current run of consecutive failures; {@link #NOT_TRACKING} when none. */
     private long failureStreakStartMs;
     /** When the currently outstanding sink send was accepted; {@link #NOT_TRACKING} when idle. */
@@ -73,7 +72,6 @@ public class CameraPreviewSession implements PreviewSession {
             }
             active = true;
             long now = clock.nowMs();
-            startedAtMs = now;
             failureStreakStartMs = NOT_TRACKING;
             inFlightSinceMs = NOT_TRACKING;
             inFlightAttempt = NOT_TRACKING;
@@ -105,7 +103,7 @@ public class CameraPreviewSession implements PreviewSession {
         }
     }
 
-    /** Pumps the periodic max-duration and stats checks; safe to call from a timer. */
+    /** Pumps the periodic failure and stats checks; safe to call from a timer. */
     public void tick() {
         String stopReason = null;
         int[] statsSnapshot = null;
@@ -115,9 +113,7 @@ public class CameraPreviewSession implements PreviewSession {
                 return;
             }
             long now = clock.nowMs();
-            if (now - startedAtMs >= AsgConstants.CAMERA_PREVIEW_MAX_DURATION_MS) {
-                stopReason = "max_duration";
-            } else if (failureStreakStartMs != NOT_TRACKING
+            if (failureStreakStartMs != NOT_TRACKING
                     && now - failureStreakStartMs >= AsgConstants.CAMERA_PREVIEW_FAILURE_WINDOW_MS) {
                 stopReason = "post_failures";
             } else if (inFlightSinceMs != NOT_TRACKING
@@ -149,37 +145,33 @@ public class CameraPreviewSession implements PreviewSession {
                 return;
             }
             long now = clock.nowMs();
-            if (now - startedAtMs >= AsgConstants.CAMERA_PREVIEW_MAX_DURATION_MS) {
-                stopReason = "max_duration";
+            // The source already paces captures to intervalMs, so every frame is due; the
+            // only choice left is send (sink idle) or drop (a send is still in flight).
+            frameCounter++;
+            if (inFlightSinceMs == NOT_TRACKING) {
+                // Mark in-flight BEFORE calling the sink: a real sink's callback can run
+                // on another thread and fire before trySend() returns to us (e.g. an
+                // immediate connection failure), so marking after the call would race a
+                // synchronous/very-fast callback and leave the marker stuck forever.
+                attemptSeq++;
+                attempt = attemptSeq;
+                inFlightSinceMs = now;
+                inFlightAttempt = attempt;
+                frameToSend = new PreviewFrame(jpegBytes, frameCounter, captureTimeMs);
             } else {
-                // The source already paces captures to intervalMs, so every frame is due; the
-                // only choice left is send (sink idle) or drop (a send is still in flight).
-                frameCounter++;
-                if (inFlightSinceMs == NOT_TRACKING) {
-                    // Mark in-flight BEFORE calling the sink: a real sink's callback can run
-                    // on another thread and fire before trySend() returns to us (e.g. an
-                    // immediate connection failure), so marking after the call would race a
-                    // synchronous/very-fast callback and leave the marker stuck forever.
-                    attemptSeq++;
-                    attempt = attemptSeq;
-                    inFlightSinceMs = now;
-                    inFlightAttempt = attempt;
-                    frameToSend = new PreviewFrame(jpegBytes, frameCounter, captureTimeMs);
-                } else {
-                    dropped++;
-                    // Only judge staleness when we are NOT about to make a fresh attempt: a fresh
-                    // attempt's own callback (onSinkResult) decides its fate, so a large
-                    // intervalMs landing exactly on the failure window must not preempt it
-                    // (e.g. a single failure followed by a success 5s later must not stop).
-                    if (now - inFlightSinceMs >= AsgConstants.CAMERA_PREVIEW_FAILURE_WINDOW_MS) {
-                        // A hung sink never calls back, so this bounds a dead phone to ~5s.
-                        stopReason = "post_failures";
-                    }
+                dropped++;
+                // Only judge staleness when we are NOT about to make a fresh attempt: a fresh
+                // attempt's own callback (onSinkResult) decides its fate, so a large
+                // intervalMs landing exactly on the failure window must not preempt it
+                // (e.g. a single failure followed by a success 5s later must not stop).
+                if (now - inFlightSinceMs >= AsgConstants.CAMERA_PREVIEW_FAILURE_WINDOW_MS) {
+                    // A hung sink never calls back, so this bounds a dead phone to ~5s.
+                    stopReason = "post_failures";
                 }
-                if (stopReason == null && now - lastStatsEmitMs >= AsgConstants.CAMERA_PREVIEW_STATS_INTERVAL_MS) {
-                    statsSnapshot = new int[]{sent, dropped, failed};
-                    lastStatsEmitMs = now;
-                }
+            }
+            if (stopReason == null && now - lastStatsEmitMs >= AsgConstants.CAMERA_PREVIEW_STATS_INTERVAL_MS) {
+                statsSnapshot = new int[]{sent, dropped, failed};
+                lastStatsEmitMs = now;
             }
         }
 

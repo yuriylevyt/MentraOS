@@ -228,7 +228,7 @@ public class CameraPreviewSessionTest {
                 sink.completeOldest(false);
             }
         }
-        assertTrue(stoppedReasons.isEmpty());
+        assertEquals(List.of(), stoppedReasons);
         // a success resets the window
         t += 100;
         clock.nowMs = t;
@@ -243,7 +243,7 @@ public class CameraPreviewSessionTest {
                 sink.completeOldest(false);
             }
         }
-        assertTrue(stoppedReasons.isEmpty());
+        assertEquals(List.of(), stoppedReasons);
     }
 
     @Test
@@ -278,7 +278,7 @@ public class CameraPreviewSessionTest {
             clock.nowMs = pendingCompletionAt;
             sink.completeOldest(true);
         }
-        assertTrue(stoppedReasons.isEmpty());
+        assertEquals(List.of(), stoppedReasons);
         assertTrue("sent=" + sink.sent.size(), sink.sent.size() >= 11 && sink.sent.size() <= 13);
     }
 
@@ -290,14 +290,14 @@ public class CameraPreviewSessionTest {
         source.deliverFrame(new byte[]{1}, s);
         assertEquals(1, sink.sent.size());
         sink.completeOldest(false);
-        assertTrue(stoppedReasons.isEmpty());
+        assertEquals(List.of(), stoppedReasons);
 
         clock.nowMs = s + 5000;
         source.deliverFrame(new byte[]{2}, s + 5000);
         assertEquals(2, sink.sent.size());
         sink.completeOldest(true);
 
-        assertTrue(stoppedReasons.isEmpty());
+        assertEquals(List.of(), stoppedReasons);
     }
 
     @Test
@@ -307,7 +307,7 @@ public class CameraPreviewSessionTest {
 
         source.deliverFrame(new byte[]{1}, s);
         sink.completeOldest(false);
-        assertTrue(stoppedReasons.isEmpty());
+        assertEquals(List.of(), stoppedReasons);
 
         clock.nowMs = s + 5000;
         source.deliverFrame(new byte[]{2}, s + 5000);
@@ -371,22 +371,20 @@ public class CameraPreviewSessionTest {
     }
 
     @Test
-    public void stopsAtTenMinutesWithMaxDuration() {
+    public void keepsRunningPastTenMinutes() {
         session.start(config(100));
         long t = clock.nowMs;
-        for (int i = 0; i < 6100; i++) { // 6100*100ms = 610s > 600s
+        for (int i = 0; i < 7200; i++) { // 7200*100ms = 720s > the old 600s cap
             t += 100;
             clock.nowMs = t;
             source.deliverFrame(new byte[]{1}, t);
             if (!sink.pending.isEmpty()) {
                 sink.completeOldest(true);
             }
-            if (!stoppedReasons.isEmpty()) {
-                break;
-            }
+            session.tick();
         }
-        assertEquals(1, stoppedReasons.size());
-        assertEquals("max_duration", stoppedReasons.get(0));
+        assertEquals(List.of(), stoppedReasons);
+        assertTrue(session.isActive());
     }
 
     @Test
