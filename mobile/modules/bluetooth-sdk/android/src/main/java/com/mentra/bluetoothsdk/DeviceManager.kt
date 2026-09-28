@@ -1896,6 +1896,21 @@ class DeviceManager {
         live.stopCameraWarmUp(requestId)
     }
 
+    fun startCameraPreview(params: Map<String, Any>) {
+        liveForCameraPreview().startCameraPreview(params)
+    }
+
+    fun stopCameraPreview() {
+        liveForCameraPreview().stopCameraPreview()
+    }
+
+    private fun liveForCameraPreview(): MentraLive =
+        sgc as? MentraLive
+            ?: throw BluetoothSdkException(
+                "unsupported_device",
+                "This command requires Mentra Live glasses.",
+            )
+
     /**
      * Read glasses media step volume (0—5) via K900 on Mentra Live only. Blocks until response,
      * error, or timeout (used from JS AsyncFunction on a worker thread).

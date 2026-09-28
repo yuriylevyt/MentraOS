@@ -2133,6 +2133,17 @@ class MentraLive: NSObject, SGCManager {
         )
     }
 
+    /// Params are already normalized by the JS layer; the glasses apply defaults and clamps.
+    func startCameraPreview(_ params: [String: Any]) {
+        var json = params
+        json["type"] = "start_camera_preview"
+        sendJson(json, wakeUp: true)
+    }
+
+    func stopCameraPreview() {
+        sendJson(["type": "stop_camera_preview"], wakeUp: true)
+    }
+
     func startStream(_ message: [String: Any]) {
         Bridge.log("Starting stream")
         var json = message
@@ -2831,6 +2842,9 @@ class MentraLive: NSObject, SGCManager {
 
         case "video_recording_status":
             emitVideoRecordingStatus(json)
+
+        case "camera_preview_status":
+            Bridge.sendTypedMessage("camera_preview_status", body: json)
 
         case "media_success", "media_error":
             Bridge.sendMediaUploadEvent(type: type, values: json)

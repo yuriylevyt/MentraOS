@@ -1581,6 +1581,14 @@ struct ViewState {
         try liveSgc().stopCameraWarmUp(requestId: requestId)
     }
 
+    func startCameraPreview(_ params: [String: Any]) throws {
+        try liveSgc().startCameraPreview(params)
+    }
+
+    func stopCameraPreview() throws {
+        try liveSgc().stopCameraPreview()
+    }
+
     /// Request version info from glasses.
     /// Glasses will respond with version_info message containing build number, firmware version, etc.
     func requestVersionInfo() {

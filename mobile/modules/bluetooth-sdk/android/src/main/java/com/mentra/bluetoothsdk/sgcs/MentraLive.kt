@@ -3789,6 +3789,12 @@ class MentraLive : SGCManager() {
                 }
             }
             "video_recording_status" -> emitVideoRecordingStatus(json)
+            "camera_preview_status" ->
+                    try {
+                        Bridge.sendTypedMessage("camera_preview_status", jsonObjectToMap(json))
+                    } catch (e: JSONException) {
+                        Log.e(TAG, "Error converting camera preview status to Map", e)
+                    }
             "media_success", "media_error" -> {
                 try {
                     Bridge.sendMediaUploadEvent(type, jsonObjectToMap(json))
@@ -6459,6 +6465,19 @@ class MentraLive : SGCManager() {
         val json = JSONObject()
         json.put("type", "camera_warm_up_stop")
         json.put("requestId", requestId)
+        sendJson(json, true)
+    }
+
+    /** Params are already normalized by the JS layer; the glasses apply defaults and clamps. */
+    fun startCameraPreview(params: Map<String, Any>) {
+        val json = JSONObject(params)
+        json.put("type", "start_camera_preview")
+        sendJson(json, true)
+    }
+
+    fun stopCameraPreview() {
+        val json = JSONObject()
+        json.put("type", "stop_camera_preview")
         sendJson(json, true)
     }
 

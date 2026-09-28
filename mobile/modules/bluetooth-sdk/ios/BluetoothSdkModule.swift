@@ -63,6 +63,7 @@ public class BluetoothSdkModule: Module, MentraBluetoothSDKDelegate {
             "mic_health",
             "stream_status",
             "keep_alive_ack",
+            "camera_preview_status",
             "mtk_update_complete",
             "glasses_session_changed",
             "ota_progress",
@@ -463,6 +464,16 @@ public class BluetoothSdkModule: Module, MentraBluetoothSDKDelegate {
         AsyncFunction("stopCameraWarmUp") { (requestId: String) in
             let sdk = await MainActor.run { self.bluetoothSdk() }
             try sdk.stopCameraWarmUp(requestId: requestId)
+        }
+
+        AsyncFunction("startCameraPreview") { (params: [String: Any]) in
+            let sdk = await MainActor.run { self.bluetoothSdk() }
+            try sdk.startCameraPreview(params)
+        }
+
+        AsyncFunction("stopCameraPreview") {
+            let sdk = await MainActor.run { self.bluetoothSdk() }
+            try sdk.stopCameraPreview()
         }
 
         // MARK: - OTA Commands

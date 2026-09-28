@@ -375,6 +375,7 @@ class BluetoothSdkModule : Module() {
             "mic_health",
             "stream_status",
             "keep_alive_ack",
+            "camera_preview_status",
             "mtk_update_complete",
             "glasses_session_changed",
             "ota_progress",
@@ -687,6 +688,12 @@ class BluetoothSdkModule : Module() {
         SdkAsyncFunction("stopCameraWarmUp") { requestId: String ->
             requireSdk().stopCameraWarmUp(requestId)
         }
+
+        SdkAsyncFunction("startCameraPreview") { params: Map<String, Any> ->
+            requireSdk().startCameraPreview(params)
+        }
+
+        SdkAsyncFunction("stopCameraPreview") { -> requireSdk().stopCameraPreview() }
 
         // MARK: - OTA Commands
 

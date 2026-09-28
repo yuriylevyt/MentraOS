@@ -981,6 +981,14 @@ public final class MentraBluetoothSDK {
         try DeviceManager.shared.stopCameraWarmUp(requestId: effectiveRequestId)
     }
 
+    public func startCameraPreview(_ params: [String: Any]) throws {
+        try DeviceManager.shared.startCameraPreview(params)
+    }
+
+    public func stopCameraPreview() throws {
+        try DeviceManager.shared.stopCameraPreview()
+    }
+
     public func queryGalleryStatus() async throws -> GalleryStatusEvent {
         if pendingGalleryStatus != nil {
             throw BluetoothSdkError(

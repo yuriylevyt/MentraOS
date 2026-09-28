@@ -972,6 +972,14 @@ class MentraBluetoothSdk private constructor(
         deviceManager.stopCameraWarmUp(effectiveRequestId)
     }
 
+    fun startCameraPreview(params: Map<String, Any>) {
+        deviceManager.startCameraPreview(params)
+    }
+
+    fun stopCameraPreview() {
+        deviceManager.stopCameraPreview()
+    }
+
     suspend fun queryGalleryStatus(): GalleryStatusEvent {
         val pending = PendingResponse<GalleryStatusEvent>("gallery status query")
         synchronized(oneShotLock) {

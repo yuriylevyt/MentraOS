@@ -820,6 +820,82 @@ export type StreamStatusEvent =
       attempt?: number
     })
 
+/** Camera preview format (ADR 0013). Glasses without H.264 support ignore it and run JPEG. */
+export type CameraPreviewFormat = "jpeg" | "h264"
+
+/**
+ * Start a camera preview from the glasses to a phone receiver (Mentra Live only): a JPEG frame push
+ * (default) or an H.264 stream. Omitted optional fields use the glasses defaults (100 ms, 1280x720,
+ * quality 60, 1500 kbps, keyframe every 1000 ms); the glasses clamp out-of-range values and report
+ * the effective settings in the `started` status.
+ */
+export type CameraPreviewStartParams = {
+  /** http(s) URL the glasses POST each JPEG frame to; for H.264, the http:// URL of the stream route. */
+  url: string
+  /** Sent as `Authorization: Bearer <token>` on every JPEG frame, or once when an H.264 stream opens. */
+  token: string
+  intervalMs?: number | null
+  width?: number | null
+  height?: number | null
+  /** JPEG quality. */
+  quality?: number | null
+  /** Default `jpeg`. */
+  format?: CameraPreviewFormat | null
+  /** H.264 only: target encoder bitrate. */
+  bitrateKbps?: number | null
+  /** H.264 only: time between keyframes. */
+  keyframeIntervalMs?: number | null
+}
+
+export type CameraPreviewStopReason =
+  | "requested"
+  | "restarted"
+  | "preempted"
+  | "ble_disconnected"
+  | "post_failures"
+  | "max_duration"
+  | "camera_error"
+  | "camera_access_restricted"
+  | "invalid_params"
+  | "unauthorized"
+  | "unsupported_format"
+
+type CameraPreviewStatusCommon = {
+  type: "camera_preview_status"
+  timestamp: number
+}
+
+/** Camera preview lifecycle from the glasses. Native forwards the raw payload, so `reason` may be a newer value. */
+export type CameraPreviewStatusEvent =
+  | (CameraPreviewStatusCommon & {
+      status: "started"
+      intervalMs: number
+      width: number
+      height: number
+      quality: number
+      /** Absent from glasses without H.264 support, which run JPEG. */
+      format?: CameraPreviewFormat
+      /** H.264 only. */
+      bitrateKbps?: number
+      /** H.264 only. */
+      keyframeIntervalMs?: number
+    })
+  | (CameraPreviewStatusCommon & {
+      status: "stopped"
+      reason: CameraPreviewStopReason
+    })
+  | (CameraPreviewStatusCommon & {
+      status: "camera_busy"
+    })
+  | (CameraPreviewStatusCommon & {
+      status: "stats"
+      sent: number
+      dropped: number
+      failed: number
+      /** Live SoC die temperature in °C reported by the glasses during preview. */
+      temperatureC?: number
+    })
+
 export type KeepAliveAckEvent = {
   type: "keep_alive_ack"
   streamId: string
@@ -941,6 +1017,7 @@ export type BluetoothSdkModuleEvents = {
   mic_health: (event: MicHealthEvent) => void
   stream_status: (event: StreamStatusEvent) => void
   keep_alive_ack: (event: KeepAliveAckEvent) => void
+  camera_preview_status: (event: CameraPreviewStatusEvent) => void
   mtk_update_complete: (event: MtkUpdateCompleteEvent) => void
   glasses_session_changed: (event: GlassesSessionChangedEvent) => void
   ota_start_ack: (event: OtaStartAckEvent) => void
@@ -1045,6 +1122,7 @@ export type BluetoothSdkEventMap = {
   mic_lc3: MicLc3Event
   mic_health: MicHealthEvent
   stream_status: StreamStatusEvent
+  camera_preview_status: CameraPreviewStatusEvent
   /** Mentra Live MTK updater completed and the glasses are about to restart. */
   mtk_update_complete: MtkUpdateCompleteEvent
   /** The ASG process restarted while the BES kept the BLE connection alive. */
@@ -1174,6 +1252,15 @@ export interface BluetoothSdkPublicModule {
 
   startStream(params: StreamStartRequest): Promise<StreamStatusEvent>
   stopStream(): Promise<StreamStatusEvent>
+
+  /**
+   * Ask Mentra Live glasses to push JPEG preview frames to `params.url`. Resolves once the command is
+   * sent; the outcome arrives as `camera_preview_status` events. Rejects with `unsupported_device`
+   * on other glasses.
+   */
+  startCameraPreview(params: CameraPreviewStartParams): Promise<void>
+  /** Stop the camera preview; the glasses answer with `camera_preview_status` `stopped`/`requested`. */
+  stopCameraPreview(): Promise<void>
 
   setMicState(enabled: boolean, useGlassesMic?: boolean, sendTranscript?: boolean, sendLc3Data?: boolean): Promise<void>
   setPreferredMic(preferredMic: MicPreference): Promise<void>

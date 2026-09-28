@@ -14,6 +14,7 @@ import {
   CameraFovOverrideRequest,
   CameraFovResult,
   CameraFovSetting,
+  CameraPreviewStartParams,
   CameraRoiPosition,
   CameraStatusEvent,
   ConnectOptions,
@@ -50,6 +51,7 @@ import {
   WifiSearchResult,
   WifiStatusChangeEvent,
 } from "../BluetoothSdk.types"
+import {cameraPreviewParamsForNative} from "./cameraPreviewPayload"
 import {warmUpCameraParamsForNative} from "./cameraRequestPayload"
 import {photoRequestParamsForNative} from "./photoRequestPayload"
 import {streamRequestParamsForNative} from "./streamRequestPayload"
@@ -190,6 +192,10 @@ declare class BluetoothSdkNativeModule extends NativeModule<BluetoothSdkModuleEv
   startExternallyManagedStream(params: StreamStartRequest): Promise<StreamStatusEvent>
   stopStream(): Promise<StreamStatusEvent>
   sendExternallyManagedStreamKeepAlive(params: StreamKeepAliveRequest): Promise<void>
+
+  // Camera Preview Commands
+  startCameraPreview(params: CameraPreviewStartParams): Promise<void>
+  stopCameraPreview(): Promise<void>
 
   // Microphone Commands
   setMicState(enabled: boolean, useGlassesMic?: boolean, sendTranscript?: boolean, sendLc3Data?: boolean): Promise<void>
@@ -658,6 +664,14 @@ const nativeStartStream = bindNativeMethod<(params: StreamStartRequest) => Promi
 )
 NativeBluetoothSdkModule.startStream = function (params: StreamStartRequest) {
   return nativeStartStream(streamRequestParamsForNative(params) as unknown as StreamStartRequest)
+}
+
+const nativeStartCameraPreview = bindNativeMethod<(params: CameraPreviewStartParams) => Promise<void>>(
+  NativeBluetoothSdkModule as unknown as Record<string, unknown>,
+  "startCameraPreview",
+)
+NativeBluetoothSdkModule.startCameraPreview = function (params: CameraPreviewStartParams) {
+  return nativeStartCameraPreview(cameraPreviewParamsForNative(params) as unknown as CameraPreviewStartParams)
 }
 
 export default NativeBluetoothSdkModule
