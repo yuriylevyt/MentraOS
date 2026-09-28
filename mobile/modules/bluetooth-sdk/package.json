@@ -74,8 +74,10 @@
     "!src/__tests__"
   ],
   "scripts": {
-    "build": "expo-module build",
-    "build:plugin": "expo-module build plugin",
+    "build": "EXPO_NONINTERACTIVE=1 expo-module build",
+    "build:plugin": "EXPO_NONINTERACTIVE=1 expo-module build plugin",
+    "watch": "expo-module build",
+    "watch:plugin": "expo-module build plugin",
     "clean": "expo-module clean",
     "test": "expo-module test",
     "test:release-metadata": "node --test scripts/*.test.mjs",

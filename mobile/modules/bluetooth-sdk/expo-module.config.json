@@ -1,7 +1,8 @@
 {
   "platforms": ["apple", "android"],
   "apple": {
-    "modules": ["BluetoothSdkModule", "MentraPhotoReceiverModule", "MentraOtaServerModule"]
+    "modules": ["BluetoothSdkModule", "MentraPhotoReceiverModule", "MentraOtaServerModule"],
+    "podspecPath": "ios/MentraBluetoothSDK.podspec"
   },
   "android": {
     "modules": [
